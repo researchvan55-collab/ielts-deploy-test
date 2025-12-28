@@ -11,20 +11,18 @@ export default async function handler(req, res) {
 
   try {
     const { question, content } = req.body;
-    if (!process.env.GEMINI_API_KEY) throw new Error("API Key chưa được thiết lập trên Vercel");
+    if (!process.env.GEMINI_API_KEY) throw new Error("API Key chưa có trên Vercel");
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
-    // Sửa đổi quan trọng ở đây: Thêm cấu hình phiên bản nếu cần
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-    });
+    // THAY ĐỔI: Dùng model 'gemini-pro' thay vì 'gemini-1.5-flash' để ổn định hơn
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    const prompt = `You are an IELTS Examiner. Grade this essay and return ONLY a JSON object.
-    Task: ${question}
-    Essay: ${content}
+    const prompt = `Bạn là giám khảo IELTS. Chấm bài Task 2 này và trả về JSON duy nhất.
+    Đề bài: ${question}
+    Bài làm: ${content}
     
-    JSON Structure:
+    JSON format:
     {
       "estimatedScore": {
         "total": 6.5,
@@ -40,7 +38,6 @@ export default async function handler(req, res) {
     const response = await result.response;
     const text = response.text();
     
-    // Trích xuất JSON từ phản hồi của AI
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}') + 1;
     const cleanJson = text.substring(start, end);
@@ -49,15 +46,14 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error("Lỗi:", error.message);
-    return res.status(500).json({ 
-      error: "Server Error", 
+    return res.status(200).json({ // Trả về 200 nhưng chứa nội dung lỗi để app không sập
       estimatedScore: { 
-        total: "Error", 
+        total: "Lỗi", 
         taskResponse: 0, 
         coherenceCohesion: 0, 
         lexicalResource: 0, 
         grammaticalRange: 0, 
-        overallFeedback: "Lỗi: " + error.message 
+        overallFeedback: "Vui lòng kiểm tra lại API Key hoặc vùng quốc gia. Lỗi: " + error.message 
       }
     });
   }
