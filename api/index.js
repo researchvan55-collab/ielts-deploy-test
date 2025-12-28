@@ -1,42 +1,52 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req, res) {
-  // Cấu hình Header
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(200).json({ status: "API is live" });
+  if (req.method !== 'POST') return res.status(200).json({ status: "Ready" });
 
   try {
     const { question, content } = req.body;
-
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
-    }
+    if (!process.env.GEMINI_API_KEY) throw new Error("Key bị trống trên Vercel");
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const prompt = `Grade this IELTS Task 2 essay. 
-    Question: ${question}
-    Essay: ${content}
-    Return ONLY a JSON object. No markdown.`;
+    const prompt = `Bạn là giám khảo IELTS. Chấm bài này và TRẢ VỀ JSON DUY NHẤT. 
+    Đề: ${question}
+    Bài làm: ${content}
+    
+    Định dạng JSON bắt buộc:
+    {
+      "estimatedScore": {
+        "total": 6.5,
+        "taskResponse": 7.0,
+        "coherenceCohesion": 6.0,
+        "lexicalResource": 7.0,
+        "grammaticalRange": 6.0,
+        "overallFeedback": "Nhận xét tổng quát của bạn ở đây."
+      }
+    }`;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    let text = result.response.text();
     
-    // Làm sạch dữ liệu JSON
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    // MẸO: Chỉ lấy những gì nằm giữa dấu { và } để tránh rác văn bản
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}') + 1;
+    const cleanJson = text.substring(start, end);
     
-    const jsonData = JSON.parse(text);
-    return res.status(200).json(jsonData);
+    return res.status(200).json(JSON.parse(cleanJson));
 
   } catch (error) {
-    console.error("Error:", error.message);
-    return res.status(500).json({ error: error.message });
+    console.error("Lỗi:", error.message);
+    return res.status(500).json({ 
+      error: "Server Error", 
+      estimatedScore: { total: 0, taskResponse: 0, coherenceCohesion: 0, lexicalResource: 0, grammaticalRange: 0, overallFeedback: "Lỗi kết nối AI: " + error.message }
+    });
   }
 }
