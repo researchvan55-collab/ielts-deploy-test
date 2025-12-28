@@ -11,16 +11,20 @@ export default async function handler(req, res) {
 
   try {
     const { question, content } = req.body;
-    if (!process.env.GEMINI_API_KEY) throw new Error("Key bị trống trên Vercel");
+    if (!process.env.GEMINI_API_KEY) throw new Error("API Key chưa được thiết lập trên Vercel");
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    const prompt = `Bạn là giám khảo IELTS. Chấm bài này và TRẢ VỀ JSON DUY NHẤT. 
-    Đề: ${question}
-    Bài làm: ${content}
     
-    Định dạng JSON bắt buộc:
+    // Sửa đổi quan trọng ở đây: Thêm cấu hình phiên bản nếu cần
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+    });
+
+    const prompt = `You are an IELTS Examiner. Grade this essay and return ONLY a JSON object.
+    Task: ${question}
+    Essay: ${content}
+    
+    JSON Structure:
     {
       "estimatedScore": {
         "total": 6.5,
@@ -28,14 +32,15 @@ export default async function handler(req, res) {
         "coherenceCohesion": 6.0,
         "lexicalResource": 7.0,
         "grammaticalRange": 6.0,
-        "overallFeedback": "Nhận xét tổng quát của bạn ở đây."
+        "overallFeedback": "Your feedback here"
       }
     }`;
 
     const result = await model.generateContent(prompt);
-    let text = result.response.text();
+    const response = await result.response;
+    const text = response.text();
     
-    // MẸO: Chỉ lấy những gì nằm giữa dấu { và } để tránh rác văn bản
+    // Trích xuất JSON từ phản hồi của AI
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}') + 1;
     const cleanJson = text.substring(start, end);
@@ -46,7 +51,14 @@ export default async function handler(req, res) {
     console.error("Lỗi:", error.message);
     return res.status(500).json({ 
       error: "Server Error", 
-      estimatedScore: { total: 0, taskResponse: 0, coherenceCohesion: 0, lexicalResource: 0, grammaticalRange: 0, overallFeedback: "Lỗi kết nối AI: " + error.message }
+      estimatedScore: { 
+        total: "Error", 
+        taskResponse: 0, 
+        coherenceCohesion: 0, 
+        lexicalResource: 0, 
+        grammaticalRange: 0, 
+        overallFeedback: "Lỗi: " + error.message 
+      }
     });
   }
 }
