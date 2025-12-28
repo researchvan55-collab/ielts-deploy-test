@@ -1,2 +1,53 @@
-<h1>Chào mừng bạn đến với IELTS Master Feedback!</h1>
-<p>Nếu bạn thấy dòng này, nghĩa là App của bạn đã hết lỗi 404.</p>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>For Myself - IELTS Master Feedback</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; line-height: 1.6; }
+        textarea { width: 100%; height: 200px; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        button { background-color: #0070f3; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:disabled { background-color: #ccc; }
+        #result { margin-top: 20px; white-space: pre-wrap; background: #f9f9f9; padding: 15px; border-radius: 5px; border-left: 5px solid #0070f3; }
+    </style>
+</head>
+<body>
+    <h1>IELTS Master Feedback ✍️</h1>
+    <p>Dán bài viết Task 2 của bạn vào đây để nhận nhận xét từ AI:</p>
+    
+    <textarea id="userInput" placeholder="Nhập bài viết của bạn tại đây..."></textarea>
+    <button id="submitBtn" onclick="sendToAI()">Chấm bài ngay</button>
+
+    <div id="result" style="display:none;"></div>
+
+    <script>
+        async function sendToAI() {
+            const text = document.getElementById('userInput').value;
+            const btn = document.getElementById('submitBtn');
+            const resultDiv = document.getElementById('result');
+
+            if (!text) return alert("Vui lòng nhập bài viết!");
+
+            btn.disabled = true;
+            btn.innerText = "Đang chấm bài...";
+            resultDiv.style.display = "block";
+            resultDiv.innerText = "Chờ một chút, AI đang phân tích...";
+
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: text })
+                });
+                const data = await response.json();
+                resultDiv.innerText = data.reply || data.error;
+            } catch (err) {
+                resultDiv.innerText = "Lỗi kết nối: " + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Chấm bài ngay";
+            }
+        }
+    </script>
+</body>
+</html>
